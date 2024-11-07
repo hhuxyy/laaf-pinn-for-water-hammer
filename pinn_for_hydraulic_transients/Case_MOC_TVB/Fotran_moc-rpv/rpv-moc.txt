@@ -1,0 +1,98 @@
+Program single_pipe
+    use shell32
+    implicit none
+    real,parameter::pi=3.14159,g=9.806
+    real::Hr=32,L=37.2,c=1319,D=0.022,f=0.0174,tc=0.009,Tmax=1,Em=1.5,CdAg=0.009        !例题中的给定参数
+    integer::N=32
+    real,allocatable::Hp(:),Qp(:)                 !用以存储计算时刻的水头和流量
+    real,allocatable::H(:),Q(:)                  !该时刻的水头和流量
+    real::Cp,Cm,Bp,Bm                          !特征线参数
+    real::Q0,H0,Cv                             !初始流量与阀门处初始水头损失,求解阀门中间参数
+    real::B,R,A                                !定义特性阻抗B、阻抗系数,管道面积A
+    !INTEGER,parameter::dx=10
+    integer::dx
+    real::dt                                !管道每段长度和瞬变计算的间隔时间
+    real::t=0,TAU=1                            !初始时刻与阀门开度
+    real::f_open                               !打开计算结果文件的参数
+    integer::i                                 !管道内节点的循环
+    real::j                                    !时间循环
+    integer::k
+    integer,parameter::fileHi = 201
+    integer,parameter::fileQi = 202
+    !求解特定参数
+    allocate(Hp(1:N+1),Qp(1:N+1))
+    allocate(H(1:N+1),Q(1:N+1))
+    !dt=dx/c
+    dx= L/N
+    dt = dx/c
+    A=pi/4*D*D
+    B=c/A/g
+    R=f*dx/2/g/D/A/A
+  
+    !初始条件
+    H(1)=Hr
+    !Q0=sqrt(Hr*2*g*CdAg**2/(R*N*2*g*CdAg**2+1))   !初始流量
+    Q0 = 0.1*A
+   ! Q0=0.314
+    Q(1)=Q0
+    Do i=1,N
+        H(i+1)=H(i)-R*Q0**2
+        Q(i+1)=Q0
+    end do
+    H0=Q0**2/2/g/CdAg**2        !阀门处初始水头损失
+   
+   !将初始结果输出到CSV表格中
+    open(201,file='Hi.CSV')     
+    open(202,file = 'Qi.CSV')
+    write(201,"(A,',',A,',',A,',',A,',',A,',',A)")'时间','H1','H2','H3','HT1','HT2'
+    write(201,"(F20.5,',',F20.5,',',F20.5,',',F20.5,',',F20.5,',',F20.5)")t,H(7),H(19),H(25),H(4),H(33)
+    write(202,"(A,',',A,',',A,',',A,',',A,',',A)")'时间','Q1','Q2','Q3','QT1','QT2'
+    write(202,"(F20.5,',',F20.5,',',F20.5,',',F20.5,',',F20.5,',',F20.5)")t,Q(7),Q(19),Q(25),Q(4),Q(33)
+    
+    t=t+dt
+    k =0
+    Do j=t,Tmax,dt
+       
+        !管道中间点处的水头流量计算
+        Do i=2,N
+            Cp=H(i-1)+B*Q(i-1)
+            Bp=B+R*abs(Q(i-1))
+            Cm=H(i+1)-B*Q(i+1)
+            Bm=B+R*abs(Q(i+1))
+            Hp(i)=(Cp*Bm+Cm*Bp)/(Bp+Bm)
+            Qp(i)=(Cp-Cm)/(Bp+Bm)
+        end do
+        
+        !上游边界条件
+        Hp(1)=Hr
+        Cm=H(2)-B*Q(2)
+        Bm=B+R*abs(Q(2))
+        Qp(1)=(Hp(1)-Cm)/Bm
+        
+        !下游边界条件
+        if (j<=Tc) then
+            TAU=(1-j/Tc)**Em
+        else
+            TAU=0
+        end if
+        Cv=(Q0*TAU)**2/2/H0
+        Cp=H(N)+B*Q(N)
+        Bp=B+R*abs(Q(N))
+        Qp(N+1)=-Bp*Cv+sqrt(Bp**2*Cv**2+2*Cv*Cp)
+        Hp(N+1)=Cp-Bp*Qp(N+1)
+        
+        Do i=1,N+1
+            H(i)=Hp(i)
+            Q(i)=Qp(i)
+        end do
+        
+        k = k+1
+        !if (mod(k,5)==0) then 
+                write(201,"(F20.5,',',F20.5,',',F20.5,',',F20.5,',',F20.5,',',F20.5)")J,H(7),H(19),H(25),H(4),H(33)
+                write(202,"(F20.5,',',F20.5,',',F20.5,',',F20.5,',',F20.5,',',F20.5)")J,Q(7),Q(19),Q(25),Q(4),Q(33)
+        !end if 
+        
+    end do
+    close(1)
+    f_open=shellexecute(0,"open","Hi.CSV",null,null,1)
+end
