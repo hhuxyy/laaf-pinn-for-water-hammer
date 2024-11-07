@@ -171,7 +171,6 @@ class PINN:
 
         return Loss
 
-    # 训练
     def Train(self):
         # dataset = TensorDataset(self.X_o, self.HQ)
         # bs = int(len(self.X_o) / 1)
