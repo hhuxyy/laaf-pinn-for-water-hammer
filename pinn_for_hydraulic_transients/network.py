@@ -4,7 +4,6 @@ from collections import OrderedDict
 
 
 class Network(nn.Module):
-    # 构造函数
     def __init__(self,layers):
         super(Network, self).__init__()
         num_layers = len(layers) - 1
