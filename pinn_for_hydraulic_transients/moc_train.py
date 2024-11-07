@@ -35,7 +35,6 @@ a_g = 9.806
 
 
 class PINN:
-    # 构造函数
     def __init__(self, x, t, h, v, xt, tt, ht, vt):
         layers = [2] + [20] * 8 + [2]
         # self.model = ModifiedMLP(layers).to(device)
