@@ -26,6 +26,7 @@ else:
     device = torch.device('cpu')
 
 total_epoch = 200000
+step_size = 10000
 
 pipe_D = 0.05
 pipe_A = 0.25 * pipe_D ** 2 * math.pi
@@ -37,7 +38,7 @@ a_g = 9.806
 class PINN:
     def __init__(self, x, t, h, v, xt, tt, ht, vt):
         layers = [2] + [20] * 8 + [2]
-        # self.model = ModifiedMLP(layers).to(device)
+        # self.model = Network(layers).to(device)
         self.model = Network(layers).to(device)
 
         XX0, TT0 = torch.meshgrid(x, t)
@@ -45,13 +46,7 @@ class PINN:
         self.pipe_L = 300
         self.n_collo = 30
         x_collocation = torch.linspace(10, self.pipe_L, self.n_collo)
-        # lhs_x_c = np.array([0.0]) + (pipe_L - np.array([0.0])) * lhs(1, 25)  # LHS
-        # x_collocation = torch.tensor(lhs_x_c, dtype=torch.float32).squeeze(1)
 
-        # ub = np.array(float(t.max()))
-        # lb = np.array(float(t.min()))
-        # lhs_t_c = lb + (ub - lb) * lhs(1, 800)
-        # t_collocation = torch.tensor(lhs_t_c, dtype=torch.float32).squeeze(1)  #
         ub = float(t.max())
         lb = float(t.min())
         self.t_collocation = torch.linspace(lb, ub, 401)
@@ -109,7 +104,7 @@ class PINN:
 
         # lr_decay
         self.schedule = lr_scheduler.ExponentialLR(self.adam, gamma=0.9, verbose=False)
-        self.step_size = total_epoch
+        self.step_size = step_size
 
         self.train_loss = []  # list_loss
         self.test_loss = []
@@ -138,9 +133,6 @@ class PINN:
         dv_dx = dV_dX[:, 0]
         dv_dt = dV_dX[:, 1]
 
-        # f_1 = pipe_A * dq_dt + Q1 * dq_dx + a_g * pipe_A ** 2 * dh_dx + pipe_f * Q1 * abs(Q1) / 2 / pipe_D
-        # f_2 = pipe_A * dh_dt + Q1 * dh_dx + pipe_a ** 2 / a_g * dq_dx
-        # pipe_A * 2 * pipe_a ** 2 / a_g * dh_dt * self.lamda  # 参照粘弹性模型，多添加了一项关于dh/dt的损失项
         f_1 = dv_dt + a_g * dh_dx + pipe_f * V1 * abs(V1) / 2 / pipe_D + \
               self.lamda * (dv_dt - pipe_a * dv_dx)
         f_2 = dh_dt + pipe_a ** 2 / a_g * dv_dx
@@ -172,34 +164,29 @@ class PINN:
         return Loss
 
     def Train(self):
-        # dataset = TensorDataset(self.X_o, self.HQ)
-        # bs = int(len(self.X_o) / 1)
-        # dataloader = DataLoader(dataset, batch_size=bs, shuffle=False)
 
         print("Using Adam:")
         for i in range(total_epoch):
             self.model.train()
-            # for ii, data0 in enumerate(dataloader, 1):
-            # data_xob, data_hqob = data0
             self.adam.zero_grad()
             self.adam_lamda.zero_grad()
+            
             LOSS, loss0, loss1 = self.loss_func(self.X_o, self.HV)
             self.train_loss.append(LOSS.item())
             self.lamda_list.append(self.lamda.item())
-            # self.lp.append(loss1.item())
+
             LOSS.backward()
             self.adam.step()
             self.adam_lamda.step()
 
-            if self.iter % self.step_size == 0:
-                self.schedule.step()
+            # if self.iter % step_size == 0:
+            #    self.schedule.step()
 
             if self.iter % 100 == 0:
                 self.model.eval()
                 with torch.no_grad():
                     pred_HV = self.model(self.X_t)
-                    # pred = pred_HQ.detach()
-                    val_loss = self.criterion(pred_HV[:, 0], self.HV_t[:, 0]) / torch.mean(self.HV_t[:, 0] ** 2)
+                    val_loss = torch.sqrt(torch.sum((pred_HV - self.HV_t)**2) / torch.sum(self.HV_t ** 2))
                     self.test_loss.append(val_loss.item())
 
         print("Using L-BFGS")
