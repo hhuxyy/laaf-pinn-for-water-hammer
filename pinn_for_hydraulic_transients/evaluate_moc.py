@@ -9,7 +9,7 @@ import numpy as np
 from network_LAAF import DNN_LAAF
 
 
-layers = [2] + [20] * 6 + [2]
+layers = [2] + [20] * 8 + [2]
 model = DNN_LAAF(layers)
 model_loaded = torch.load('model.pth')
 model.load_state_dict(model_loaded)
@@ -38,23 +38,20 @@ h_test = Ht.flatten()[:, None]  # NT x 1
 v_test = Vt.flatten()[:, None]  # NT x 1
 hv_test = torch.cat([h_test, v_test], 1)
 
-# X = torch.cat([x_test, t_test], 1)
-
 with torch.no_grad():
     HV_pred = model(X).cpu()
 
 # Error
-hv00 = torch.zeros_like(hv_test)
-loss_fn = torch.nn.MSELoss(reduction='sum')
-error_h = torch.sqrt(loss_fn(HV_pred[:,0], hv_test[:,0]) / loss_fn(hv_test[:,0], hv00[:,0]))
-# error_h_q = torch.sqrt(torch.sum((HQ_pred[:, 0] - hq_test[:, 0]) ** 2) / torch.sum(hq_test[:, 0] ** 2))
+error_h = torch.sqrt(torch.sum((HQ_pred[:, 0] - hq_test[:, 0]) ** 2) / torch.sum(hq_test[:, 0] ** 2))
 print('Error : %e' % error_h)
 
 V0 = 0.412
 v_pred = HV_pred[:, 1]/100
 
 V_pred = v_pred + (V0 - v_pred[0])  # PINN-Ye-2022
-# V_pred = v_pred + (torch.mean(hv_test[:, 1]) - torch.mean(v_pred))  # ye-2024
+error_v = torch.sqrt(torch.sum((hv_test[:, 1] - V_pred) ** 2) / torch.sum(hv_test[:, 1] ** 2))
+print('Error : %e' % error_v)
+
 HV_pred1 = torch.stack([HV_pred[:, 0], V_pred], 1)
 DATA = torch.cat([t_test.unsqueeze(1), HV_pred1, hv_test], 1)
 DATA = DATA.numpy()
