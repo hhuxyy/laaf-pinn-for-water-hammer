@@ -23,8 +23,6 @@ class DNN_LAAF(nn.Module):
 
     def forward(self, x):
 
-        # x = self.layers[0](x)
-        # x = self.bn(x)
         i = 0
         for layer in self.layers[:-1]:
             x = F.tanh(10 * torch.mul(self.a[i, :], layer(x)))
