@@ -26,13 +26,10 @@ tt = pf1(T_test)
 Ht = pf2(H_test)
 Vt = pf2(V_test)
 
-# XX_t, TT_t = torch.meshgrid(Xt, tt)
 x00 = torch.linspace(10, 300, 30)
 X = torch.stack(torch.meshgrid(Xt, tt)).reshape(2, -1).T
 x_test = X[:, 0]
 t_test = X[:, 1]
-# x_test = XX_t.flatten()[:, None]  # NT x 1
-# t_test = TT_t.flatten()[:, None]  # NT x 1
 
 h_test = Ht.flatten()[:, None]  # NT x 1
 v_test = Vt.flatten()[:, None]  # NT x 1
