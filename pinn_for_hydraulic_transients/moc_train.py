@@ -18,7 +18,6 @@ torch.cuda.manual_seed(1234)
 torch.manual_seed(1234)
 
 if torch.cuda.is_available():
-    """ Cuda support """
     print('cuda available')
     device = torch.device('cuda')
 else:
@@ -38,7 +37,6 @@ a_g = 9.806
 class PINN:
     def __init__(self, x, t, h, v, xt, tt, ht, vt):
         layers = [2] + [20] * 8 + [2]
-        # self.model = Network(layers).to(device)
         self.model = Network(layers).to(device)
 
         XX0, TT0 = torch.meshgrid(x, t)
@@ -120,7 +118,6 @@ class PINN:
         dH_dX = torch.autograd.grad(inputs=x_co,
                                     outputs=H1,
                                     grad_outputs=torch.ones_like(H1),
-                                    # retain_graph=True,
                                     create_graph=True)[0]
         dh_dx = dH_dX[:, 0]
         dh_dt = dH_dX[:, 1]
@@ -128,7 +125,6 @@ class PINN:
         dV_dX = torch.autograd.grad(inputs=x_co,
                                     outputs=V1,
                                     grad_outputs=torch.ones_like(V1),
-                                    # retain_graph=True,
                                     create_graph=True)[0]
         dv_dx = dV_dX[:, 0]
         dv_dt = dV_dX[:, 1]
